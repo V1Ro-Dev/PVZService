@@ -24,6 +24,10 @@ const (
 	IsUserExistQuery = `
 		select id from "user" where email = $1
 	`
+
+	GetUserQuery = `
+		select id, email, password, salt, role from "user" where email = $1
+	`
 )
 
 type PostgresUserRepository struct {
@@ -75,4 +79,27 @@ func (p *PostgresUserRepository) IsUserExist(ctx context.Context, email string) 
 
 	logger.Error(ctx, fmt.Sprintf("User with email: %s exists. His Id is %s", email, userId.String()))
 	return true, nil
+}
+
+func (p *PostgresUserRepository) GetUserByEmail(ctx context.Context, logInData models.LoginData) (models.User, error) {
+	logger.Info(ctx, fmt.Sprintf("Trying to get user by email: %s", logInData.Email))
+
+	var user models.User
+	err := p.connPool.QueryRow(ctx, GetUserQuery, logInData.Email).Scan(&user.Id,
+		&user.Email,
+		&user.Password,
+		&user.Salt,
+		&user.Role,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Error(ctx, fmt.Sprintf("User with email: %s does not exist", logInData.Email))
+			return models.User{}, nil
+		}
+		logger.Error(ctx, fmt.Sprintf("unable to get user info: %v", err))
+		return models.User{}, errors.New("unable to get friends info")
+	}
+
+	logger.Info(ctx, fmt.Sprintf("Successfully got info about user with email: %s", logInData.Email))
+	return user, nil
 }

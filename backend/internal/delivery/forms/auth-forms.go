@@ -13,15 +13,20 @@ type SignUpFormIn struct {
 }
 
 type SignInFormOut struct {
-	id    string
-	email string
-	role  string
+	Id    string `json:"id"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
 }
 
 func ToSignUpOut(user models.User) SignInFormOut {
 	return SignInFormOut{
-		id:    user.Id,
-		email: user.Email,
-		role:  user.Role,
+		Id:    user.Id,
+		Email: user.Email,
+		Role:  user.Role,
 	}
+}
+
+type LogInFormIn struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }

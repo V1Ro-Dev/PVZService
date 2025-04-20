@@ -32,8 +32,9 @@ func Run(cfg *config.Config) error {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/dummyLogin", newAuthHandler.DummyLogin)
+	r.HandleFunc("/dummyLogin", newAuthHandler.DummyLogin).Methods("POST")
 	r.HandleFunc("/register", newAuthHandler.Register).Methods("POST")
+	r.HandleFunc("/login", newAuthHandler.Login).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,

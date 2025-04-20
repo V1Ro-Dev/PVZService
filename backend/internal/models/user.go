@@ -7,3 +7,8 @@ type User struct {
 	Role     string
 	Id       string
 }
+
+type LoginData struct {
+	Email    string
+	Password string
+}

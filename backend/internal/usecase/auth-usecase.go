@@ -2,11 +2,13 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	"github.com/google/uuid"
+
 	"pvz/internal/delivery/forms"
 	"pvz/internal/models"
-
 	"pvz/internal/utils"
 	"pvz/pkg/logger"
 )
@@ -14,6 +16,7 @@ import (
 type UserRepository interface {
 	CreateUser(ctx context.Context, user models.User) error
 	IsUserExist(ctx context.Context, email string) (bool, error)
+	GetUserByEmail(ctx context.Context, logInData models.LoginData) (models.User, error)
 }
 
 type AuthService struct {
@@ -67,4 +70,23 @@ func (a *AuthService) IsUserExist(ctx context.Context, email string) (bool, erro
 	}
 
 	return isExists, nil
+}
+
+func (a *AuthService) LogInUser(ctx context.Context, logInForm forms.LogInFormIn) (string, error) {
+	loginData := models.LoginData{
+		Email:    logInForm.Email,
+		Password: logInForm.Password,
+	}
+
+	user, err := a.userRepo.GetUserByEmail(ctx, loginData)
+	if err != nil {
+		return "", err
+	}
+
+	if !utils.CheckPassword(loginData.Password, user.Password, user.Salt) {
+		logger.Error(ctx, "Passwords don't match")
+		return "", errors.New("wrong auth data")
+	}
+
+	return user.Role, nil
 }
