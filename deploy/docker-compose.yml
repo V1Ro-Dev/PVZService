@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: pvz
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_started
+    restart: always
+    env_file:
+      - .env
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: avito_test
+      POSTGRES_PASSWORD: 228Amogus
+      POSTGRES_DB: pvz_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../deploy/sql:/docker-entrypoint-initdb.d
+
+
+volumes:
+  postgres_data:

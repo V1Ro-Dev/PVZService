@@ -7,3 +7,7 @@ func ValidateRole(role string) bool {
 
 	return true
 }
+
+func ValidateEmail(email string) bool {
+	return true
+}
