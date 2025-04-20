@@ -1,13 +1,14 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
-	"pvz/pkg/logger"
 	"strings"
 
 	"github.com/gorilla/mux"
 
 	"pvz/internal/utils"
+	"pvz/pkg/logger"
 )
 
 func RoleMiddleware(allowedTypes ...string) mux.MiddlewareFunc {
@@ -22,6 +23,10 @@ func RoleMiddleware(allowedTypes ...string) mux.MiddlewareFunc {
 				logger.Error(ctx, "Invalid Authorization header params count")
 				utils.WriteJsonError(w, "invalid token", http.StatusBadRequest)
 				return
+			}
+
+			if tokenParts[0] != "Bearer" {
+				logger.Error(ctx, fmt.Sprintf("Invalid first param: %s", tokenParts[0]))
 			}
 
 			role, err := utils.GetRole(tokenParts[1])

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"pvz/internal/delivery/middleware"
 
 	"github.com/gorilla/mux"
 
 	"pvz/config"
 	"pvz/internal/delivery/handlers"
+	"pvz/internal/delivery/middleware"
 	"pvz/internal/repository"
 	"pvz/internal/usecase"
 	"pvz/pkg/logger"

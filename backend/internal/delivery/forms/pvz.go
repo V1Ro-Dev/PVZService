@@ -1,15 +1,16 @@
 package forms
 
 import (
-	"pvz/internal/models"
 	"time"
 
 	"github.com/google/uuid"
+
+	"pvz/internal/models"
 )
 
 type PvzForm struct {
 	Id               uuid.UUID `json:"id"`
-	RegistrationDate time.Time `json:"registration_date"`
+	RegistrationDate time.Time `json:"registrationDate"`
 	City             string    `json:"city"`
 }
 

@@ -36,6 +36,8 @@ func (ph *PvzHandler) CreatePvz(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJsonError(w, "failed to parse json", http.StatusBadRequest)
 		return
 	}
+	
+	logger.Info(ctx, "Successfully parsed json")
 
 	if err := utils.ValidateCity(pvzForm.City); err != nil {
 		logger.Error(ctx, fmt.Sprintf("City validation error: %s", err.Error()))

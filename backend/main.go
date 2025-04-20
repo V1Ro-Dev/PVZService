@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"pvz/internal"
 
 	"pvz/config"
+	"pvz/internal"
 )
 
 func main() {
