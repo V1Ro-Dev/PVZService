@@ -7,9 +7,9 @@ CREATE TABLE IF NOT EXISTS "user" (
 );
 
 
-CREATE TABLE IF NOT EXISTS pickup_point (
+CREATE TABLE IF NOT EXISTS pvz (
                                            id uuid primary key,
-                                           registration_date date not null,
+                                           registration_date timestamptz not null,
                                            city text not null
 );
 
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS pickup_point (
 CREATE TABLE IF NOT EXISTS reception (
                                         id uuid primary key,
                                         reception_datetime timestamptz not null,
-                                        pickup_point_id uuid not null references pickup_point(id) on delete cascade,
+                                        pvz_id uuid not null references pvz(id) on delete cascade,
                                         status text not null check (status in ('in_progress', 'close'))
 );
 

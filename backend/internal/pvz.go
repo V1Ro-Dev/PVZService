@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pvz/internal/delivery/middleware"
 
 	"github.com/gorilla/mux"
 
@@ -23,10 +24,13 @@ func Run(cfg *config.Config) error {
 	ctx := context.Background()
 
 	newUserRepo := repository.NewPostgresUserRepository()
+	newPvzRepo := repository.NewPostgresPvzRepository()
 
 	newAuthService := usecase.NewAuthService(newUserRepo)
+	newPvzService := usecase.NewPvzService(newPvzRepo)
 
 	newAuthHandler := handlers.NewAuthHandler(newAuthService)
+	newPvzHandler := handlers.NewPvzHandler(newPvzService)
 
 	defer newUserRepo.Close()
 
@@ -35,6 +39,10 @@ func Run(cfg *config.Config) error {
 	r.HandleFunc("/dummyLogin", newAuthHandler.DummyLogin).Methods("POST")
 	r.HandleFunc("/register", newAuthHandler.Register).Methods("POST")
 	r.HandleFunc("/login", newAuthHandler.Login).Methods("POST")
+
+	protected := r.PathPrefix("/").Subrouter()
+	protected.Use(middleware.RoleMiddleware("moderator"))
+	protected.HandleFunc("/pvz", newPvzHandler.CreatePvz).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,

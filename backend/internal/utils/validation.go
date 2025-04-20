@@ -1,9 +1,12 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
+
+var allowedCities = []string{"Москва", "Санкт-Петербург", "Казань"}
 
 func ValidateRole(role string) bool {
 	if role != "moderator" && role != "client" {
@@ -30,4 +33,14 @@ func ValidateAll(email string, role string) error {
 	}
 
 	return nil
+}
+
+func ValidateCity(city string) error {
+	for _, valid := range allowedCities {
+		if city == valid {
+			return nil
+		}
+	}
+
+	return errors.New("invalid city")
 }
