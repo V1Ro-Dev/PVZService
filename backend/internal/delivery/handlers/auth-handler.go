@@ -73,9 +73,9 @@ func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info(ctx, "Successfully parsed json")
 
-	if utils.ValidateRole(signUpForm.Role) == false {
-		logger.Error(ctx, fmt.Sprintf("Role %s is not valid", signUpForm.Role))
-		utils.WriteJsonError(w, "Incorrect role was given", http.StatusBadRequest)
+	if err := utils.ValidateAll(signUpForm.Email, signUpForm.Role); err != nil {
+		logger.Error(ctx, err.Error())
+		utils.WriteJsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		utils.WriteJsonError(w, "failed to check user exists", http.StatusBadRequest)
 		return
 	}
-	
+
 	if isExists {
 		utils.WriteJsonError(w, "user already exists", http.StatusBadRequest)
 		return
