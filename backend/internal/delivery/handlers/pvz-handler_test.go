@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"pvz/config"
 	"pvz/internal/delivery/forms"
 	"pvz/internal/delivery/handlers"
 	"pvz/internal/delivery/mocks"
@@ -29,7 +30,7 @@ func TestCreatePvz(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		input        forms.PvzForm
+		input        interface{}
 		mockError    error
 		expectStatus int
 		expectedBody interface{}
@@ -52,16 +53,23 @@ func TestCreatePvz(t *testing.T) {
 			expectStatus: http.StatusBadRequest,
 			expectedBody: map[string]interface{}{"message": "Invalid city"},
 		},
+		{
+			name:         "invalid json",
+			input:        `{{}`,
+			mockError:    errors.New("invalid json"),
+			expectStatus: http.StatusBadRequest,
+			expectedBody: map[string]interface{}{"message": "failed to parse json"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.mockError == nil {
-				mockUC.EXPECT().CreatePvz(gomock.Any(), gomock.Eq(tt.input)).Return(models.Pvz{City: tt.input.City}, nil)
+				mockUC.EXPECT().CreatePvz(gomock.Any(), gomock.Eq(tt.input)).Return(models.Pvz{City: tt.input.(forms.PvzForm).City}, nil)
 			}
 
 			body, _ := json.Marshal(tt.input)
-			req := httptest.NewRequest(http.MethodPost, "/pvz/create", bytes.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/pvz", bytes.NewReader(body))
 			rec := httptest.NewRecorder()
 
 			handler.CreatePvz(rec, req)
@@ -85,24 +93,28 @@ func TestGetPvzInfo(t *testing.T) {
 	mockUC := mocks.NewMockPvzUseCase(ctrl)
 	handler := handlers.NewPvzHandler(mockUC)
 
+	pvzId := uuid.New()
+	receptionId := uuid.New()
+	productId := uuid.New()
+
 	pvz := models.Pvz{
-		Id:               uuid.New(),
-		RegistrationDate: time.Now(),
+		Id:               pvzId,
+		RegistrationDate: time.Now().UTC().Truncate(time.Millisecond),
 		City:             "Москва",
 	}
 
 	reception := models.Reception{
-		Id:       uuid.New(),
-		DateTime: time.Now(),
-		PvzId:    pvz.Id,
-		Status:   models.Status("active"),
+		Id:       receptionId,
+		DateTime: time.Now().UTC().Truncate(time.Millisecond),
+		PvzId:    pvzId,
+		Status:   models.InProgress,
 	}
 
 	product := models.Product{
-		Id:          uuid.New(),
-		DateTime:    time.Now(),
-		ProductType: "TypeA",
-		ReceptionId: reception.Id,
+		Id:          productId,
+		DateTime:    time.Now().UTC().Truncate(time.Millisecond),
+		ProductType: "обувь",
+		ReceptionId: receptionId,
 	}
 
 	receptionProducts := models.ReceptionProducts{
@@ -122,8 +134,8 @@ func TestGetPvzInfo(t *testing.T) {
 		{
 			name: "valid request with page and limit",
 			queryParams: map[string]string{
-				"startDate": "2025-04-01T00:00:00Z",
-				"endDate":   "2025-04-22T23:59:59Z",
+				"startDate": "2006-01-02T15:04:05.000Z",
+				"endDate":   "2006-01-02T15:04:05.000Z",
 				"page":      "1",
 				"limit":     "10",
 			},
@@ -140,25 +152,25 @@ func TestGetPvzInfo(t *testing.T) {
 			expectedBody: []map[string]interface{}{
 				{
 					"pvz": map[string]interface{}{
-						"city":             "Москва",
-						"id":               "e91cdb32-583f-4de8-8f02-f0d04aa86036",
-						"registrationDate": "2025-04-22T04:10:34.2552892+03:00",
+						"city":             pvz.City,
+						"id":               pvz.Id.String(),
+						"registrationDate": pvz.RegistrationDate.Format(config.TimeStampLayout),
 					},
 					"receptions": []interface{}{
 						map[string]interface{}{
+							"reception": map[string]interface{}{
+								"dateTime": reception.DateTime.Format(config.TimeStampLayout),
+								"id":       reception.Id.String(),
+								"pvzId":    reception.PvzId.String(),
+								"status":   string(reception.Status),
+							},
 							"products": []interface{}{
 								map[string]interface{}{
-									"dateTime":    "2025-04-22T04:10:34.2552892+03:00",
-									"id":          "6aaca00a-2c98-4274-bd83-c05baea3705c",
-									"productType": "TypeA",
-									"receptionId": "6aaca00a-2c98-4274-bd83-c05baea3705c",
+									"dateTime":    product.DateTime.Format(config.TimeStampLayout),
+									"id":          product.Id.String(),
+									"productType": product.ProductType,
+									"receptionId": product.ReceptionId.String(),
 								},
-							},
-							"reception": map[string]interface{}{
-								"dateTime": "2025-04-22T04:10:34.2552892+03:00",
-								"id":       "1f85e4e7-5be1-4a50-ab7e-84b5169d0bfe",
-								"pvzId":    "e91cdb32-583f-4de8-8f02-f0d04aa86036",
-								"status":   "active",
 							},
 						},
 					},
@@ -166,8 +178,8 @@ func TestGetPvzInfo(t *testing.T) {
 			},
 
 			expectedForm: forms.GetPvzInfoForm{
-				StartDate: mustParseTime("2025-04-01T00:00:00Z"),
-				EndDate:   mustParseTime("2025-04-22T23:59:59Z"),
+				StartDate: mustParseTime("2006-01-02T15:04:05.000Z"),
+				EndDate:   mustParseTime("2006-01-02T15:04:05.000Z"),
 				Page:      1,
 				Limit:     10,
 			},
@@ -187,16 +199,16 @@ func TestGetPvzInfo(t *testing.T) {
 		{
 			name: "server error",
 			queryParams: map[string]string{
-				"startDate": "2025-04-01T00:00:00Z",
-				"endDate":   "2025-04-22T23:59:59Z",
+				"startDate": "2006-01-02T15:04:05.000Z",
+				"endDate":   "2006-01-02T15:04:05.000Z",
 			},
 			mockResponse: nil,
 			mockError:    errors.New("unable to get pvz info"),
 			expectStatus: http.StatusBadRequest,
 			expectedBody: map[string]interface{}{"message": "unable to get info"},
 			expectedForm: forms.GetPvzInfoForm{
-				StartDate: mustParseTime("2025-04-01T00:00:00Z"),
-				EndDate:   mustParseTime("2025-04-22T23:59:59Z"),
+				StartDate: mustParseTime("2006-01-02T15:04:05.000Z"),
+				EndDate:   mustParseTime("2006-01-02T15:04:05.000Z"),
 				Page:      1,
 				Limit:     10,
 			},
@@ -258,7 +270,7 @@ func TestGetPvzInfo(t *testing.T) {
 }
 
 func mustParseTime(timeStr string) time.Time {
-	t, err := time.Parse(time.RFC3339, timeStr)
+	t, err := time.Parse(config.TimeStampLayout, timeStr)
 	if err != nil {
 		panic(err)
 	}

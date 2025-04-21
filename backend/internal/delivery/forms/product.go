@@ -25,6 +25,6 @@ func ToProductFormOut(product models.Product) ProductFormOut {
 		Id:          product.Id,
 		DateTime:    product.DateTime,
 		ProductType: product.ProductType,
-		ReceptionId: product.Id,
+		ReceptionId: product.ReceptionId,
 	}
 }

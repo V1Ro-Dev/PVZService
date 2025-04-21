@@ -133,5 +133,4 @@ func (rc *ReceptionHandler) CloseReception(w http.ResponseWriter, r *http.Reques
 	}
 
 	utils.WriteJson(w, forms.ToReceptionFormOut(reception), http.StatusOK)
-
 }

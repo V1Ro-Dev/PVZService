@@ -9,14 +9,14 @@ coverage.out:
 	go test $(GO_FILES) -coverprofile=coverage.out
 
 .PHONY: summarize-coverage
-summarize-coverage: coverage.out
+summarize-coverage: coverage
 	go tool cover -func=coverage.out
 
 .PHONY: mockgen
 mockgen:
-	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/auth-handler.go -destination=$(DELIEVERY_PATH)/http/mocks/auth-mock.go -package=mocks
-	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/pvz-handler.go -destination=$(DELIEVERY_PATH)/http/mocks/pvz-mock.go -package=mocks
-	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/reception.go -destination=$(DELIEVERY_PATH)/http/mocks/reception-mock.go -package=mocks
+	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/auth-handler.go -destination=$(DELIEVERY_PATH)/mocks/auth-mock.go -package=mocks
+	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/pvz-handler.go -destination=$(DELIEVERY_PATH)/mocks/pvz-mock.go -package=mocks
+	${MOCKGEN} -source=$(DELIEVERY_PATH)/handlers/reception.go -destination=$(DELIEVERY_PATH)/mocks/reception-mock.go -package=mocks
 
 	${MOCKGEN} -source=$(USECASE_PATH)/auth-usecase.go -destination=$(USECASE_PATH)/mocks/auth-mock.go -package=mocks
 	${MOCKGEN} -source=$(USECASE_PATH)/pvz-usecase.go -destination=$(USECASE_PATH)/mocks/pvz-mock.go -package=mocks

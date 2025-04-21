@@ -118,6 +118,7 @@ func (p *PostgresPvzRepository) GetPvzInfo(ctx context.Context, form forms.GetPv
 			&reception.ReceptionId, &reception.ReceptionTime, &reception.ReceptionStatus, &reception.PvzId,
 			&product.ProductId, &product.ProductReceivedAt, &product.ProductType, &product.ProductReceptionId,
 		)
+
 		if err != nil {
 			logger.Error(ctx, fmt.Sprintf("Scanning error: %s", err.Error()))
 			return nil, err

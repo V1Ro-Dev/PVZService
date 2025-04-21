@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,7 +28,7 @@ func TestDummyLogin(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		input        forms.DummyLoginForm
+		input        interface{}
 		mockToken    string
 		mockErr      error
 		expectStatus int
@@ -69,18 +71,32 @@ func TestDummyLogin(t *testing.T) {
 			expectStatus: http.StatusBadRequest,
 			expectBody:   `{"message":"failed to gen token"}`,
 		},
+		{
+			name:         "invalid JSON",
+			input:        `{"role": "moderator"`,
+			expectStatus: http.StatusBadRequest,
+			expectBody:   `{"message":"failed to parse json"}`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.mockErr == nil && tt.expectStatus == http.StatusOK {
-				mockUC.EXPECT().DummyLogin(gomock.Any(), tt.input.Role).Return(tt.mockToken, nil)
-			} else if tt.mockErr != nil && tt.input.Role != "invalid_role" {
-				mockUC.EXPECT().DummyLogin(gomock.Any(), tt.input.Role).Return("", tt.mockErr)
+				mockUC.EXPECT().DummyLogin(gomock.Any(), tt.input.(forms.DummyLoginForm).Role).Return(tt.mockToken, nil)
+			} else if tt.mockErr != nil && tt.input != "invalid_role" {
+				mockUC.EXPECT().DummyLogin(gomock.Any(), tt.input.(forms.DummyLoginForm).Role).Return("", tt.mockErr)
 			}
 
-			body, _ := json.Marshal(tt.input)
-			req := httptest.NewRequest(http.MethodPost, "/dummy-login", bytes.NewReader(body))
+			var bodyReader io.Reader
+			switch v := tt.input.(type) {
+			case string:
+				bodyReader = strings.NewReader(v)
+			default:
+				body, _ := json.Marshal(tt.input)
+				bodyReader = bytes.NewReader(body)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/dummy-login", bodyReader)
 			rec := httptest.NewRecorder()
 
 			handler.DummyLogin(rec, req)
@@ -108,7 +124,7 @@ func TestRegister(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		input        forms.SignUpFormIn
+		input        interface{}
 		isExist      bool
 		createErr    error
 		mockErr      error
@@ -148,30 +164,74 @@ func TestRegister(t *testing.T) {
 			expectStatus: http.StatusBadRequest,
 			expectBody:   `{"message":"email badmail is not valid"}`,
 		},
+		{
+			name:         "invalid JSON",
+			input:        `{"email": "test@test.ru", "password": "123", "role": "client"`,
+			expectStatus: http.StatusBadRequest,
+			expectBody:   `{"message":"failed to parse json"}`,
+		},
+		{
+			name: "failed to check user exists",
+			input: forms.SignUpFormIn{
+				Email:    "checkfail@test.ru",
+				Password: "123",
+				Role:     string(models.Client),
+			},
+			expectStatus: http.StatusBadRequest,
+			expectBody:   `{"message":"failed to check user exists"}`,
+			mockErr:      errors.New("some db error"),
+		},
+		{
+			name: "failed to create user",
+			input: forms.SignUpFormIn{
+				Email:    "createfail@test.ru",
+				Password: "123",
+				Role:     string(models.Client),
+			},
+			expectStatus: http.StatusBadRequest,
+			expectBody:   `{"message":"failed to create user"}`,
+			createErr:    errors.New("some db error"),
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.expectStatus == http.StatusCreated {
-				mockUC.EXPECT().IsUserExist(gomock.Any(), tt.input.Email).Return(false, nil)
-				mockUC.EXPECT().CreateUser(gomock.Any(), tt.input).Return(validUser, nil)
-			} else if tt.isExist {
-				mockUC.EXPECT().IsUserExist(gomock.Any(), tt.input.Email).Return(true, nil)
-			} else if tt.expectStatus == http.StatusBadRequest && tt.input.Email != "badmail" {
-				mockUC.EXPECT().IsUserExist(gomock.Any(), tt.input.Email).Return(false, nil)
-				mockUC.EXPECT().CreateUser(gomock.Any(), tt.input).Return(models.User{}, errors.New("fail"))
+			if form, ok := tt.input.(forms.SignUpFormIn); ok {
+				switch tt.name {
+				case "failed to check user exists":
+					mockUC.EXPECT().IsUserExist(gomock.Any(), form.Email).Return(false, tt.mockErr)
+				case "failed to create user":
+					mockUC.EXPECT().IsUserExist(gomock.Any(), form.Email).Return(false, nil)
+					mockUC.EXPECT().CreateUser(gomock.Any(), form).Return(models.User{}, tt.createErr)
+				default:
+					if tt.expectStatus == http.StatusCreated {
+						mockUC.EXPECT().IsUserExist(gomock.Any(), form.Email).Return(false, nil)
+						mockUC.EXPECT().CreateUser(gomock.Any(), form).Return(validUser, nil)
+					} else if tt.isExist {
+						mockUC.EXPECT().IsUserExist(gomock.Any(), form.Email).Return(true, nil)
+					} else if tt.expectStatus == http.StatusBadRequest && form.Email != "badmail" {
+						mockUC.EXPECT().IsUserExist(gomock.Any(), form.Email).Return(false, nil)
+						mockUC.EXPECT().CreateUser(gomock.Any(), form).Return(models.User{}, errors.New("fail"))
+					}
+				}
 			}
 
-			body, _ := json.Marshal(tt.input)
-			req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(body))
+			var bodyReader io.Reader
+			switch v := tt.input.(type) {
+			case string:
+				bodyReader = strings.NewReader(v)
+			default:
+				body, _ := json.Marshal(v)
+				bodyReader = bytes.NewReader(body)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/register", bodyReader)
 			rec := httptest.NewRecorder()
 
 			handler.Register(rec, req)
 
 			assert.Equal(t, tt.expectStatus, rec.Code)
-
-			respBody := rec.Body.String()
-			assert.JSONEq(t, tt.expectBody, respBody)
+			assert.JSONEq(t, tt.expectBody, rec.Body.String())
 		})
 	}
 }
@@ -225,10 +285,28 @@ func TestLogin(t *testing.T) {
 			expectStatus: http.StatusUnauthorized,
 			expectBody:   `{"message":"failed to gen token"}`,
 		},
+		{
+			name:         "failed to parse json",
+			expectStatus: http.StatusBadRequest,
+			expectBody:   `{"message":"failed to parse json"}`,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.name == "failed to parse json" {
+				req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString("{invalid json"))
+				rec := httptest.NewRecorder()
+
+				handler.Login(rec, req)
+
+				assert.Equal(t, tt.expectStatus, rec.Code)
+				respBody := rec.Body.String()
+				assert.JSONEq(t, tt.expectBody, respBody)
+				return
+			}
+
+			// остальная логика, если JSON валидный
 			if tt.loginErr == nil {
 				mockUC.EXPECT().LogInUser(gomock.Any(), tt.input).Return(tt.role, nil)
 			} else {
@@ -248,9 +326,9 @@ func TestLogin(t *testing.T) {
 			handler.Login(rec, req)
 
 			assert.Equal(t, tt.expectStatus, rec.Code)
-
 			respBody := rec.Body.String()
 			assert.JSONEq(t, tt.expectBody, respBody)
 		})
+
 	}
 }
