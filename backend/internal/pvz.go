@@ -70,7 +70,7 @@ func Run(cfg *config.Config) error {
 		WriteTimeout: cfg.WriteTimeout,
 	}
 
-	logger.Info(ctx, fmt.Sprintf("starting server at %s\n", cfg.Addr))
+	logger.Info(ctx, fmt.Sprintf("starting server at %s", cfg.Addr))
 	err := server.ListenAndServe()
 	if err != nil {
 		logger.Error(ctx, fmt.Sprintf("failed to start server: %v", err))

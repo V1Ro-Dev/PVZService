@@ -11,5 +11,5 @@ import (
 func SetRequestId(ctx context.Context) context.Context {
 	return context.WithValue(ctx,
 		logger.RequestID,
-		logger.ReqIdKey(uuid.New().String()))
+		uuid.New().String())
 }

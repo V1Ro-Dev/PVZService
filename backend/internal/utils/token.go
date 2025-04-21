@@ -7,7 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const jwtSecret = "secret"
+var JwtSecret = GetEnv("JWT_SECRET", "secret")
 
 func GenerateToken(role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -15,7 +15,7 @@ func GenerateToken(role string) (string, error) {
 		"expire_date": time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString([]byte(JwtSecret))
 
 	return tokenString, err
 
@@ -23,7 +23,7 @@ func GenerateToken(role string) (string, error) {
 
 func GetRole(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSecret), nil
+		return []byte(JwtSecret), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return "", err

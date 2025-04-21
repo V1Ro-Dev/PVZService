@@ -104,5 +104,4 @@ func (ph *PvzHandler) GetPvzInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJson(w, forms.ToGetPvzInfoFormOut(res), http.StatusOK)
-
 }
