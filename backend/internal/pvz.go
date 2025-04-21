@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"pvz/internal/models"
 
 	"github.com/gorilla/mux"
 
 	"pvz/config"
 	"pvz/internal/delivery/handlers"
 	"pvz/internal/delivery/middleware"
+	"pvz/internal/models"
 	"pvz/internal/repository"
 	"pvz/internal/usecase"
 	"pvz/pkg/logger"
@@ -61,6 +61,7 @@ func Run(cfg *config.Config) error {
 	protectedEmp.HandleFunc("/receptions", newReceptionHandler.CreateReception).Methods("POST")
 	protectedEmp.HandleFunc("/products", newReceptionHandler.AddProduct).Methods("POST")
 	protectedEmp.HandleFunc("/pvz/{pvzId:[0-9a-fA-F-]{36}}/delete_last_product", newReceptionHandler.RemoveProduct).Methods("POST")
+	protectedEmp.HandleFunc("/pvz/{pvzId:[0-9a-fA-F-]{36}}/close_last_reception", newReceptionHandler.CloseReception).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,

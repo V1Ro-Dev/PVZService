@@ -1,9 +1,11 @@
 package forms
 
 import (
-	"github.com/google/uuid"
-	"pvz/internal/models"
 	"time"
+
+	"github.com/google/uuid"
+
+	"pvz/internal/models"
 )
 
 type ReceptionForm struct {

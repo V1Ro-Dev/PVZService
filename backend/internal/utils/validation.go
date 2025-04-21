@@ -3,8 +3,9 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"pvz/internal/models"
 	"regexp"
+
+	"pvz/internal/models"
 )
 
 var allowedCities = []string{"Москва", "Санкт-Петербург", "Казань"}

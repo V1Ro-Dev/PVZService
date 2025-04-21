@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"net/http"
 
 	"pvz/internal/delivery/forms"
 	"pvz/internal/models"
@@ -104,4 +105,8 @@ func (rc *ReceptionHandler) RemoveProduct(w http.ResponseWriter, r *http.Request
 		utils.WriteJsonError(w, "unable to remove product", http.StatusBadRequest)
 		return
 	}
+}
+
+func (rc *ReceptionHandler) CloseReception(w http.ResponseWriter, r *http.Request) {
+	logger.Info(r.Context(), "Got close reception request")
 }
