@@ -9,6 +9,7 @@ import (
 
 type PvzRepository interface {
 	CreatePvz(ctx context.Context, pvzData models.Pvz) error
+	GetPvzInfo(ctx context.Context, form forms.GetPvzInfoForm) ([]models.PvzInfo, error)
 }
 
 type PvzService struct {
@@ -34,4 +35,13 @@ func (p *PvzService) CreatePvz(ctx context.Context, pvzForm forms.PvzForm) (mode
 	}
 
 	return pvzData, nil
+}
+
+func (p *PvzService) GetPvzInfo(ctx context.Context, form forms.GetPvzInfoForm) ([]models.PvzInfo, error) {
+	res, err := p.pvzRepo.GetPvzInfo(ctx, form)
+	if err != nil {
+		return []models.PvzInfo{}, err
+	}
+
+	return res, nil
 }

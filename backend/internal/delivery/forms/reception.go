@@ -27,3 +27,8 @@ func ToReceptionFormOut(reception models.Reception) ReceptionFormOut {
 		Status:   string(reception.Status),
 	}
 }
+
+type ReceptionProductsFormOut struct {
+	Reception ReceptionFormOut `json:"reception"`
+	Products  []ProductFormOut `json:"products"`
+}

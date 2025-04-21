@@ -19,3 +19,8 @@ type Reception struct {
 	PvzId    uuid.UUID
 	Status   Status
 }
+
+type ReceptionProducts struct {
+	Reception Reception
+	Products  []Product
+}

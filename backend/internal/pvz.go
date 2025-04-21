@@ -53,7 +53,7 @@ func Run(cfg *config.Config) error {
 	// endpoints for moderators and employees
 	protectedModerEmp := r.PathPrefix("/").Subrouter()
 	protectedModerEmp.Use(middleware.RoleMiddleware(models.Moderator, models.Employee))
-	protectedModerEmp.HandleFunc("/pvz", newPvzHandler.CreatePvz).Methods("GET")
+	protectedModerEmp.HandleFunc("/pvz", newPvzHandler.GetPvzInfo).Methods("GET")
 
 	//endpoints for employees only
 	protectedEmp := r.PathPrefix("/").Subrouter()

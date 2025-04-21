@@ -19,3 +19,8 @@ type Pvz struct {
 	RegistrationDate time.Time
 	City             string
 }
+
+type PvzInfo struct {
+	Pvz        Pvz
+	Receptions []ReceptionProducts
+}

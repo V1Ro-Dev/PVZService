@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"pvz/internal/models"
 )
@@ -56,4 +57,12 @@ func ValidateProductType(productType string) error {
 	}
 
 	return errors.New("invalid product type")
+}
+
+func ValidateTime(start time.Time, end time.Time) error {
+	if start.After(end) {
+		return errors.New("start time is after end time")
+	}
+
+	return nil
 }
