@@ -8,6 +8,7 @@ import (
 )
 
 var allowedCities = []string{"Москва", "Санкт-Петербург", "Казань"}
+var allowedTypes = []string{"электроника", "одежда", "обувь"}
 
 func ValidateRole(role string) bool {
 	if role != string(models.Moderator) && role != string(models.Client) && role != string(models.Employee) {
@@ -44,4 +45,14 @@ func ValidateCity(city string) error {
 	}
 
 	return errors.New("invalid city")
+}
+
+func ValidateProductType(productType string) error {
+	for _, valid := range allowedTypes {
+		if productType == valid {
+			return nil
+		}
+	}
+
+	return errors.New("invalid product type")
 }

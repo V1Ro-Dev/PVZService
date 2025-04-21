@@ -59,6 +59,7 @@ func Run(cfg *config.Config) error {
 	protectedEmp := r.PathPrefix("/").Subrouter()
 	protectedEmp.Use(middleware.RoleMiddleware(models.Employee))
 	protectedEmp.HandleFunc("/receptions", newReceptionHandler.CreateReception).Methods("POST")
+	protectedEmp.HandleFunc("/products", newReceptionHandler.AddProduct).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,
