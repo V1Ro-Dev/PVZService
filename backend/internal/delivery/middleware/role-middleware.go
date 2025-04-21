@@ -2,10 +2,9 @@ package middleware
 
 import (
 	"fmt"
+	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
-
-	"github.com/gorilla/mux"
 
 	"pvz/internal/models"
 	"pvz/internal/utils"

@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"pvz/config/postgres"
 	"pvz/internal/models"
@@ -55,26 +55,26 @@ const (
 )
 
 type PostgresReceptionRepository struct {
-	connPool *pgxpool.Pool
+	Db *sql.DB
 }
 
 func NewPostgresReceptionRepository() *PostgresReceptionRepository {
-	connPool, err := pgxpool.New(context.Background(), postgres.NewPostgresConfig().GetURL())
+	db, err := sql.Open("pgx", postgres.NewPostgresConfig().GetURL())
 	if err != nil {
-		log.Fatalf("Unable to create connection pool: %v", err)
+		log.Fatalf("failed to connect to postgres: %v", err)
 	}
 
-	return &PostgresReceptionRepository{connPool: connPool}
+	return &PostgresReceptionRepository{Db: db}
 }
 
 func (p *PostgresReceptionRepository) Close() {
-	p.connPool.Close()
+	p.Db.Close()
 }
 
 func (p *PostgresReceptionRepository) CreateReception(ctx context.Context, reception models.Reception) error {
 	logger.Info(ctx, "Trying to create reception")
 
-	commandTag, err := p.connPool.Exec(ctx, CreateReceptionQuery, reception.Id, reception.DateTime, reception.PvzId, reception.Status)
+	commandTag, err := p.Db.ExecContext(ctx, CreateReceptionQuery, reception.Id, reception.DateTime, reception.PvzId, reception.Status)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -86,7 +86,7 @@ func (p *PostgresReceptionRepository) CreateReception(ctx context.Context, recep
 		return fmt.Errorf("unable to create reception: %v", err)
 	}
 
-	if rows := commandTag.RowsAffected(); rows == 0 {
+	if rows, _ := commandTag.RowsAffected(); rows == 0 {
 		logger.Error(ctx, "One reception was not closed or non-existing pvzId was given")
 		return errors.New("one reception was not closed or non-existing pvzId was given")
 	}
@@ -99,7 +99,7 @@ func (p *PostgresReceptionRepository) GetOpenReception(ctx context.Context, pvzI
 	logger.Info(ctx, "Trying to get open reception")
 
 	var reception models.Reception
-	if err := p.connPool.QueryRow(ctx, GetOpenReceptionQuery, pvzId, models.InProgress).Scan(&reception.Id,
+	if err := p.Db.QueryRowContext(ctx, GetOpenReceptionQuery, pvzId, models.InProgress).Scan(&reception.Id,
 		&reception.DateTime,
 		&reception.PvzId,
 		&reception.Status,
@@ -119,7 +119,7 @@ func (p *PostgresReceptionRepository) GetOpenReception(ctx context.Context, pvzI
 func (p *PostgresReceptionRepository) AddProduct(ctx context.Context, product models.Product) error {
 	logger.Info(ctx, "Trying to add product")
 
-	_, err := p.connPool.Exec(ctx, AddProductToOpenReceptionQuery, product.Id, product.DateTime, product.ProductType, product.ReceptionId)
+	_, err := p.Db.ExecContext(ctx, AddProductToOpenReceptionQuery, product.Id, product.DateTime, product.ProductType, product.ReceptionId)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -140,7 +140,7 @@ func (p *PostgresReceptionRepository) RemoveProduct(ctx context.Context, recepti
 	logger.Info(ctx, "Trying to remove product")
 
 	var product models.Product
-	if err := p.connPool.QueryRow(ctx, DeleteLastProductFromOpenReceptionQuery, receptionId).Scan(&product.Id,
+	if err := p.Db.QueryRowContext(ctx, DeleteLastProductFromOpenReceptionQuery, receptionId).Scan(&product.Id,
 		&product.DateTime,
 		&product.ProductType,
 		&product.ReceptionId,
@@ -160,7 +160,7 @@ func (p *PostgresReceptionRepository) RemoveProduct(ctx context.Context, recepti
 func (p *PostgresReceptionRepository) CloseReception(ctx context.Context, receptionData models.Reception) error {
 	logger.Info(ctx, "Trying to close reception")
 
-	_, err := p.connPool.Exec(ctx, CloseReceptionQuery, receptionData.Id, models.Closed)
+	_, err := p.Db.ExecContext(ctx, CloseReceptionQuery, receptionData.Id, models.Closed)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {

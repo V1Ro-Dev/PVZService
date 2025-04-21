@@ -12,7 +12,7 @@ var JwtSecret = GetEnv("JWT_SECRET", "secret")
 func GenerateToken(role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"role":        role,
-		"expire_date": time.Now().Add(time.Hour * 24).Unix(),
+		"expire_date": time.Now().Add(24 * time.Hour).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(JwtSecret))
@@ -21,7 +21,7 @@ func GenerateToken(role string) (string, error) {
 
 }
 
-func GetRole(tokenString string) (string, error) {
+var GetRole = func(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(JwtSecret), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))

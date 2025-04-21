@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"pvz/config/postgres"
 	"pvz/internal/models"
@@ -31,24 +31,24 @@ const (
 )
 
 type PostgresUserRepository struct {
-	connPool *pgxpool.Pool
+	Db *sql.DB
 }
 
 func NewPostgresUserRepository() *PostgresUserRepository {
-	connPool, err := pgxpool.New(context.Background(), postgres.NewPostgresConfig().GetURL())
+	db, err := sql.Open("pgx", postgres.NewPostgresConfig().GetURL())
 	if err != nil {
-		log.Fatalf("Unable to create connection pool: %v", err)
+		log.Fatalf("failed to connect to postgres: %v", err)
 	}
 
-	return &PostgresUserRepository{connPool: connPool}
+	return &PostgresUserRepository{Db: db}
 }
 
 func (p *PostgresUserRepository) Close() {
-	p.connPool.Close()
+	p.Db.Close()
 }
 
 func (p *PostgresUserRepository) CreateUser(ctx context.Context, user models.User) error {
-	_, err := p.connPool.Exec(ctx, CreateUserQuery, user.Id, user.Email, user.Password, user.Salt, user.Role)
+	_, err := p.Db.ExecContext(ctx, CreateUserQuery, user.Id, user.Email, user.Password, user.Salt, user.Role)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -67,7 +67,7 @@ func (p *PostgresUserRepository) IsUserExist(ctx context.Context, email string) 
 	logger.Info(ctx, fmt.Sprintf("Checking user existance by email: %s", email))
 
 	var userId uuid.UUID
-	err := p.connPool.QueryRow(ctx, IsUserExistQuery, email).Scan(&userId)
+	err := p.Db.QueryRowContext(ctx, IsUserExistQuery, email).Scan(&userId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			logger.Info(ctx, fmt.Sprintf("User with email: %s does not exist", email))
@@ -85,7 +85,7 @@ func (p *PostgresUserRepository) GetUserByEmail(ctx context.Context, logInData m
 	logger.Info(ctx, fmt.Sprintf("Trying to get user by email: %s", logInData.Email))
 
 	var user models.User
-	err := p.connPool.QueryRow(ctx, GetUserQuery, logInData.Email).Scan(&user.Id,
+	err := p.Db.QueryRowContext(ctx, GetUserQuery, logInData.Email).Scan(&user.Id,
 		&user.Email,
 		&user.Password,
 		&user.Salt,

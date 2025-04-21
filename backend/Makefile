@@ -21,7 +21,3 @@ mockgen:
 	${MOCKGEN} -source=$(USECASE_PATH)/auth-usecase.go -destination=$(USECASE_PATH)/mocks/auth-mock.go -package=mocks
 	${MOCKGEN} -source=$(USECASE_PATH)/pvz-usecase.go -destination=$(USECASE_PATH)/mocks/pvz-mock.go -package=mocks
 	${MOCKGEN} -source=$(USECASE_PATH)/reception-usecase.go -destination=$(USECASE_PATH)/mocks/reception-mock.go -package=mocks
-
-	${MOCKGEN} -source=$(REPOSITORY_PATH)/auth-repository.go -destination=$(REPOSITORY_PATH)/mocks/auth-mock.go -package=mocks
-	${MOCKGEN} -source=$(REPOSITORY_PATH)/pvz-repository.go -destination=$(REPOSITORY_PATH)/mocks/pvz-mock.go -package=mocks
-	${MOCKGEN} -source=$(REPOSITORY_PATH)/reception-repository.go -destination=$(REPOSITORY_PATH)/mocks/reception-mock.go -package=mocks

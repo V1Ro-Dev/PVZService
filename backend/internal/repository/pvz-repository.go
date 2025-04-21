@@ -2,13 +2,14 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"pvz/config/postgres"
 	"pvz/internal/delivery/forms"
@@ -54,26 +55,27 @@ const (
 )
 
 type PostgresPvzRepository struct {
-	connPool *pgxpool.Pool
+	Db *sql.DB
 }
 
 func NewPostgresPvzRepository() *PostgresPvzRepository {
-	connPool, err := pgxpool.New(context.Background(), postgres.NewPostgresConfig().GetURL())
+	db, err := sql.Open("pgx", postgres.NewPostgresConfig().GetURL())
 	if err != nil {
-		log.Fatalf("Unable to create connection pool: %v", err)
+		log.Fatalf("failed to connect to postgres: %v", err)
 	}
 
-	return &PostgresPvzRepository{connPool: connPool}
+	return &PostgresPvzRepository{Db: db}
+
 }
 
 func (p *PostgresPvzRepository) Close() {
-	p.connPool.Close()
+	p.Db.Close()
 }
 
 func (p *PostgresPvzRepository) CreatePvz(ctx context.Context, pvzData models.Pvz) error {
 	logger.Info(ctx, fmt.Sprintf("Trying to create pvz with Id: %s", pvzData.Id))
 
-	_, err := p.connPool.Exec(ctx, CreatePvzQuery, pvzData.Id, pvzData.RegistrationDate, pvzData.City)
+	_, err := p.Db.ExecContext(ctx, CreatePvzQuery, pvzData.Id, pvzData.RegistrationDate, pvzData.City)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -91,7 +93,7 @@ func (p *PostgresPvzRepository) CreatePvz(ctx context.Context, pvzData models.Pv
 func (p *PostgresPvzRepository) GetPvzInfo(ctx context.Context, form forms.GetPvzInfoForm) ([]models.PvzInfo, error) {
 	logger.Info(ctx, "Trying to get pvz info")
 
-	rows, err := p.connPool.Query(ctx, GetPvzInfoQuery, form.StartDate, form.EndDate, form.Limit, (form.Page-1)*form.Limit)
+	rows, err := p.Db.QueryContext(ctx, GetPvzInfoQuery, form.StartDate, form.EndDate, form.Limit, (form.Page-1)*form.Limit)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
