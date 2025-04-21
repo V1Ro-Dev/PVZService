@@ -30,26 +30,24 @@ func NewAuthHandler(authUseCase AuthUseCase) *AuthHandler {
 }
 
 func (a *AuthHandler) DummyLogin(w http.ResponseWriter, r *http.Request) {
-	ctx := utils.SetRequestId(r.Context())
-
-	logger.Info(ctx, "Got dummy login request, trying to parse json")
+	logger.Info(r.Context(), "Got dummy login request, trying to parse json")
 
 	var dummyLoginForm forms.DummyLoginForm
 	if err := json.NewDecoder(r.Body).Decode(&dummyLoginForm); err != nil {
-		logger.Error(ctx, fmt.Sprintf("Error decoding json: %s", err.Error()))
+		logger.Error(r.Context(), fmt.Sprintf("Error decoding json: %s", err.Error()))
 		utils.WriteJsonError(w, "failed to parse json", http.StatusBadRequest)
 		return
 	}
 
-	logger.Info(ctx, "Successfully parsed json")
+	logger.Info(r.Context(), "Successfully parsed json")
 
 	if utils.ValidateRole(dummyLoginForm.Role) == false {
-		logger.Error(ctx, fmt.Sprintf("Role %s is not valid", dummyLoginForm.Role))
+		logger.Error(r.Context(), fmt.Sprintf("Role %s is not valid", dummyLoginForm.Role))
 		utils.WriteJsonError(w, "Incorrect role was given", http.StatusBadRequest)
 		return
 	}
 
-	token, err := a.authUseCase.DummyLogin(ctx, dummyLoginForm.Role)
+	token, err := a.authUseCase.DummyLogin(r.Context(), dummyLoginForm.Role)
 	if err != nil {
 		utils.WriteJsonError(w, "failed to gen token", http.StatusUnauthorized)
 		return
@@ -57,30 +55,28 @@ func (a *AuthHandler) DummyLogin(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJson(w, token, http.StatusOK)
 
-	logger.Info(ctx, "Successfully processed dummy login request")
+	logger.Info(r.Context(), "Successfully processed dummy login request")
 }
 
 func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	ctx := utils.SetRequestId(r.Context())
-
-	logger.Info(ctx, "Got register request, trying to parse json")
+	logger.Info(r.Context(), "Got register request, trying to parse json")
 
 	var signUpForm forms.SignUpFormIn
 	if err := json.NewDecoder(r.Body).Decode(&signUpForm); err != nil {
-		logger.Error(ctx, fmt.Sprintf("Error decoding json: %s", err.Error()))
+		logger.Error(r.Context(), fmt.Sprintf("Error decoding json: %s", err.Error()))
 		utils.WriteJsonError(w, "failed to parse json", http.StatusBadRequest)
 		return
 	}
 
-	logger.Info(ctx, "Successfully parsed json")
+	logger.Info(r.Context(), "Successfully parsed json")
 
 	if err := utils.ValidateAll(signUpForm.Email, signUpForm.Role); err != nil {
-		logger.Error(ctx, err.Error())
+		logger.Error(r.Context(), err.Error())
 		utils.WriteJsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	isExists, err := a.authUseCase.IsUserExist(ctx, signUpForm.Email)
+	isExists, err := a.authUseCase.IsUserExist(r.Context(), signUpForm.Email)
 	if err != nil {
 		utils.WriteJsonError(w, "failed to check user exists", http.StatusBadRequest)
 		return
@@ -91,34 +87,33 @@ func (a *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.authUseCase.CreateUser(ctx, signUpForm)
+	user, err := a.authUseCase.CreateUser(r.Context(), signUpForm)
 	if err != nil {
 		utils.WriteJsonError(w, "failed to create user", http.StatusBadRequest)
 		return
 	}
 
-	logger.Info(ctx, fmt.Sprintf("Successfully created user with Id: %s", user.Id))
+	logger.Info(r.Context(), fmt.Sprintf("Successfully created user with Id: %s", user.Id))
 	utils.WriteJson(w, forms.ToSignUpOut(user), http.StatusCreated)
 }
 
 func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	ctx := utils.SetRequestId(r.Context())
-	logger.Info(ctx, "Got login request")
+	logger.Info(r.Context(), "Got login request")
 
 	var logInForm forms.LogInFormIn
 	if err := json.NewDecoder(r.Body).Decode(&logInForm); err != nil {
-		logger.Error(ctx, fmt.Sprintf("Error decoding json: %s", err.Error()))
+		logger.Error(r.Context(), fmt.Sprintf("Error decoding json: %s", err.Error()))
 		utils.WriteJsonError(w, "failed to parse json", http.StatusBadRequest)
 		return
 	}
 
-	role, err := a.authUseCase.LogInUser(ctx, logInForm)
+	role, err := a.authUseCase.LogInUser(r.Context(), logInForm)
 	if err != nil {
 		utils.WriteJsonError(w, "Wrong auth data", http.StatusUnauthorized)
 		return
 	}
 
-	token, err := a.authUseCase.DummyLogin(ctx, role)
+	token, err := a.authUseCase.DummyLogin(r.Context(), role)
 	if err != nil {
 		utils.WriteJsonError(w, "failed to gen token", http.StatusUnauthorized)
 		return
@@ -126,5 +121,5 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJson(w, token, http.StatusOK)
 
-	logger.Info(ctx, "Successfully processed login request")
+	logger.Info(r.Context(), "Successfully processed login request")
 }

@@ -3,13 +3,14 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"pvz/internal/models"
 	"regexp"
 )
 
 var allowedCities = []string{"Москва", "Санкт-Петербург", "Казань"}
 
 func ValidateRole(role string) bool {
-	if role != "moderator" && role != "client" {
+	if role != string(models.Moderator) && role != string(models.Client) && role != string(models.Employee) {
 		return false
 	}
 

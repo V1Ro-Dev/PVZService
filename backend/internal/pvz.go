@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pvz/internal/models"
 
 	"github.com/gorilla/mux"
 
@@ -25,24 +26,39 @@ func Run(cfg *config.Config) error {
 
 	newUserRepo := repository.NewPostgresUserRepository()
 	newPvzRepo := repository.NewPostgresPvzRepository()
+	newReceptionRepo := repository.NewPostgresReceptionRepository()
 
 	newAuthService := usecase.NewAuthService(newUserRepo)
 	newPvzService := usecase.NewPvzService(newPvzRepo)
+	newReceptionService := usecase.NewReceptionService(newReceptionRepo)
 
 	newAuthHandler := handlers.NewAuthHandler(newAuthService)
 	newPvzHandler := handlers.NewPvzHandler(newPvzService)
+	newReceptionHandler := handlers.NewReceptionHandler(newReceptionService)
 
 	defer newUserRepo.Close()
 
 	r := mux.NewRouter()
 
+	r.Use(middleware.RequestIDMiddleware)
 	r.HandleFunc("/dummyLogin", newAuthHandler.DummyLogin).Methods("POST")
 	r.HandleFunc("/register", newAuthHandler.Register).Methods("POST")
 	r.HandleFunc("/login", newAuthHandler.Login).Methods("POST")
 
-	protected := r.PathPrefix("/").Subrouter()
-	protected.Use(middleware.RoleMiddleware("moderator"))
-	protected.HandleFunc("/pvz", newPvzHandler.CreatePvz).Methods("POST")
+	// endpoints for moderators only
+	protectedModer := r.PathPrefix("/").Subrouter()
+	protectedModer.Use(middleware.RoleMiddleware(models.Moderator))
+	protectedModer.HandleFunc("/pvz", newPvzHandler.CreatePvz).Methods("POST")
+
+	// endpoints for moderators and employees
+	protectedModerEmp := r.PathPrefix("/").Subrouter()
+	protectedModerEmp.Use(middleware.RoleMiddleware(models.Moderator, models.Employee))
+	protectedModerEmp.HandleFunc("/pvz", newPvzHandler.CreatePvz).Methods("GET")
+
+	//endpoints for employees only
+	protectedEmp := r.PathPrefix("/").Subrouter()
+	protectedEmp.Use(middleware.RoleMiddleware(models.Employee))
+	protectedEmp.HandleFunc("/receptions", newReceptionHandler.CreateReception).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,

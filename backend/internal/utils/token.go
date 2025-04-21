@@ -12,7 +12,7 @@ const jwtSecret = "secret"
 func GenerateToken(role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"role":        role,
-		"expire_date": time.Now().Add(time.Hour * 24),
+		"expire_date": time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(jwtSecret))
@@ -42,6 +42,6 @@ func GetRole(tokenString string) (string, error) {
 	if time.Now().After(time.Unix(int64(expireFloat), 0)) {
 		return "", errors.New("token expired")
 	}
-	
+
 	return claims["role"].(string), nil
 }
