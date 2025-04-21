@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"net/http"
 
 	"pvz/internal/delivery/forms"
@@ -15,6 +17,7 @@ import (
 type ReceptionUseCase interface {
 	CreateReception(ctx context.Context, receptionForm forms.ReceptionForm) (models.Reception, error)
 	AddProduct(ctx context.Context, productForm forms.ProductForm) (models.Product, error)
+	RemoveProduct(ctx context.Context, pvzId uuid.UUID) error
 }
 
 type ReceptionHandler struct {
@@ -50,7 +53,7 @@ func (rc *ReceptionHandler) CreateReception(w http.ResponseWriter, r *http.Reque
 }
 
 func (rc *ReceptionHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
-	logger.Info(r.Context(), "Got add product request")
+	logger.Info(r.Context(), "Got add product request, trying to parse json")
 
 	var productForm forms.ProductForm
 	err := json.NewDecoder(r.Body).Decode(&productForm)
@@ -75,4 +78,30 @@ func (rc *ReceptionHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteJson(w, forms.ToProductFormOut(product), http.StatusCreated)
+}
+
+func (rc *ReceptionHandler) RemoveProduct(w http.ResponseWriter, r *http.Request) {
+	logger.Info(r.Context(), "Got remove product request, trying to parse path params")
+
+	vars := mux.Vars(r)
+	pvzID := vars["pvzId"]
+	if pvzID == "" {
+		logger.Error(r.Context(), "Error path params: missing pvzId")
+		utils.WriteJsonError(w, "Error path params: missing pvzId", http.StatusBadRequest)
+		return
+	}
+
+	pvzId, err := uuid.Parse(pvzID)
+	if err != nil {
+		logger.Error(r.Context(), "invalid pvzId")
+		utils.WriteJsonError(w, "invalid pvzId", http.StatusBadRequest)
+		return
+	}
+
+	logger.Info(r.Context(), "Successfully parsed path params")
+
+	if err = rc.receptionUseCase.RemoveProduct(r.Context(), pvzId); err != nil {
+		utils.WriteJsonError(w, "unable to remove product", http.StatusBadRequest)
+		return
+	}
 }

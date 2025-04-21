@@ -20,6 +20,7 @@ type ReceptionRepository interface {
 	CreateReception(ctx context.Context, receptionForm models.Reception) error
 	AddProduct(ctx context.Context, product models.Product) error
 	GetOpenReception(ctx context.Context, pvzId uuid.UUID) (models.Reception, error)
+	RemoveProduct(ctx context.Context, receptionId uuid.UUID) error
 }
 
 type ReceptionService struct {
@@ -75,6 +76,10 @@ func (rc *ReceptionService) AddProduct(ctx context.Context, productForm forms.Pr
 		return models.Product{}, err
 	}
 
+	if reception.Id == uuid.Nil {
+		return models.Product{}, ReceptionNotOpened
+	}
+
 	product.ReceptionId = reception.Id
 
 	err = rc.receptionRepo.AddProduct(ctx, product)
@@ -83,4 +88,22 @@ func (rc *ReceptionService) AddProduct(ctx context.Context, productForm forms.Pr
 	}
 
 	return product, nil
+}
+
+func (rc *ReceptionService) RemoveProduct(ctx context.Context, pvzId uuid.UUID) error {
+	reception, err := rc.receptionRepo.GetOpenReception(ctx, pvzId)
+	if err != nil {
+		return err
+	}
+
+	if reception.Id == uuid.Nil {
+		return err
+	}
+
+	err = rc.receptionRepo.RemoveProduct(ctx, reception.Id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

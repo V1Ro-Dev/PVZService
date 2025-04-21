@@ -60,6 +60,7 @@ func Run(cfg *config.Config) error {
 	protectedEmp.Use(middleware.RoleMiddleware(models.Employee))
 	protectedEmp.HandleFunc("/receptions", newReceptionHandler.CreateReception).Methods("POST")
 	protectedEmp.HandleFunc("/products", newReceptionHandler.AddProduct).Methods("POST")
+	protectedEmp.HandleFunc("/pvz/{pvzId:[0-9a-fA-F-]{36}}/delete_last_product", newReceptionHandler.RemoveProduct).Methods("POST")
 
 	server := http.Server{
 		Addr:         cfg.Addr,

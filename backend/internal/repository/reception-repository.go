@@ -36,6 +36,17 @@ const (
 		insert into product (id, received_at, type, reception_id)
 		values ($1, $2, $3, $4)
 	`
+
+	DeleteLastProductFromOpenReceptionQuery = `
+		delete from product
+		where id = (
+			select id from product
+			where reception_id = $1
+			order by received_at desc
+			limit 1
+		)
+		returning id, received_at, type, reception_id
+	`
 )
 
 type PostgresReceptionRepository struct {
@@ -83,14 +94,13 @@ func (p *PostgresReceptionRepository) GetOpenReception(ctx context.Context, pvzI
 	logger.Info(ctx, "Trying to get open reception")
 
 	var reception models.Reception
-	err := p.connPool.QueryRow(ctx, GetOpenReceptionQuery, pvzId, models.InProgress).Scan(&reception.Id,
+	if err := p.connPool.QueryRow(ctx, GetOpenReceptionQuery, pvzId, models.InProgress).Scan(&reception.Id,
 		&reception.DateTime,
 		&reception.PvzId,
 		&reception.Status,
-	)
-	if err != nil {
+	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			logger.Info(ctx, fmt.Sprintf("There is no opened reception for this pvzId: %s", pvzId.String()))
+			logger.Error(ctx, fmt.Sprintf("There is no opened reception for this pvzId: %s", pvzId.String()))
 			return models.Reception{}, nil
 		}
 		logger.Error(ctx, fmt.Sprintf("unable to get open reception: %v", err))
@@ -118,5 +128,26 @@ func (p *PostgresReceptionRepository) AddProduct(ctx context.Context, product mo
 	}
 
 	logger.Info(ctx, fmt.Sprintf("Successfully added product %s to opened reception with id: %s", product.ProductType, product.ReceptionId))
+	return nil
+}
+
+func (p *PostgresReceptionRepository) RemoveProduct(ctx context.Context, receptionId uuid.UUID) error {
+	logger.Info(ctx, "Trying to remove product")
+
+	var product models.Product
+	if err := p.connPool.QueryRow(ctx, DeleteLastProductFromOpenReceptionQuery, receptionId).Scan(&product.Id,
+		&product.DateTime,
+		&product.ProductType,
+		&product.ReceptionId,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			logger.Error(ctx, fmt.Sprintf("There is no active products for this receptionId: %s", receptionId.String()))
+			return errors.New("there is no active products for this receptionId")
+		}
+		logger.Error(ctx, fmt.Sprintf("unable to delete last product for receptionId: %s. Error: %s", receptionId.String(), err.Error()))
+		return errors.New("unable to delete last product")
+	}
+
+	logger.Info(ctx, fmt.Sprintf("Successfully deleted last product with params: ID: %s, ReceivedAt: %s, Type: %s, ReceptionId: %s", product.Id.String(), product.DateTime, product.ProductType, product.ReceptionId.String()))
 	return nil
 }
