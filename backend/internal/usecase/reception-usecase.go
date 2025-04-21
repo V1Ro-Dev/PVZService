@@ -17,10 +17,11 @@ import (
 var ReceptionNotOpened = errors.New("reception is not opened")
 
 type ReceptionRepository interface {
-	CreateReception(ctx context.Context, receptionForm models.Reception) error
+	CreateReception(ctx context.Context, receptionData models.Reception) error
 	AddProduct(ctx context.Context, product models.Product) error
 	GetOpenReception(ctx context.Context, pvzId uuid.UUID) (models.Reception, error)
 	RemoveProduct(ctx context.Context, receptionId uuid.UUID) error
+	CloseReception(ctx context.Context, receptionData models.Reception) error
 }
 
 type ReceptionService struct {
@@ -97,7 +98,7 @@ func (rc *ReceptionService) RemoveProduct(ctx context.Context, pvzId uuid.UUID) 
 	}
 
 	if reception.Id == uuid.Nil {
-		return err
+		return ReceptionNotOpened
 	}
 
 	err = rc.receptionRepo.RemoveProduct(ctx, reception.Id)
@@ -106,4 +107,22 @@ func (rc *ReceptionService) RemoveProduct(ctx context.Context, pvzId uuid.UUID) 
 	}
 
 	return nil
+}
+
+func (rc *ReceptionService) CloseReception(ctx context.Context, pvzId uuid.UUID) (models.Reception, error) {
+	reception, err := rc.receptionRepo.GetOpenReception(ctx, pvzId)
+	if err != nil {
+		return models.Reception{}, err
+	}
+
+	if reception.Id == uuid.Nil {
+		return models.Reception{}, ReceptionNotOpened
+	}
+
+	err = rc.receptionRepo.CloseReception(ctx, reception)
+	if err != nil {
+		return models.Reception{}, err
+	}
+
+	return reception, nil
 }

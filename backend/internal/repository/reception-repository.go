@@ -47,6 +47,11 @@ const (
 		)
 		returning id, received_at, type, reception_id
 	`
+
+	CloseReceptionQuery = `
+		update reception set status = $2
+		where id = $1
+	`
 )
 
 type PostgresReceptionRepository struct {
@@ -149,5 +154,25 @@ func (p *PostgresReceptionRepository) RemoveProduct(ctx context.Context, recepti
 	}
 
 	logger.Info(ctx, fmt.Sprintf("Successfully deleted last product with params: ID: %s, ReceivedAt: %s, Type: %s, ReceptionId: %s", product.Id.String(), product.DateTime, product.ProductType, product.ReceptionId.String()))
+	return nil
+}
+
+func (p *PostgresReceptionRepository) CloseReception(ctx context.Context, receptionData models.Reception) error {
+	logger.Info(ctx, "Trying to close reception")
+
+	_, err := p.connPool.Exec(ctx, CloseReceptionQuery, receptionData.Id, models.Closed)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			newErr := fmt.Errorf("SQL Error: %s, Detail: %s, Where: %s", pgErr.Message, pgErr.Detail, pgErr.Where)
+			logger.Error(ctx, newErr.Error())
+			return newErr
+		}
+
+		logger.Error(ctx, fmt.Sprintf("Error closint reception with id: %s. Error: %s", receptionData.Id, err.Error()))
+		return fmt.Errorf("unable to close reception: %v", err)
+	}
+
+	logger.Info(ctx, fmt.Sprintf("Successfully closed reception with id: %s", receptionData.Id))
 	return nil
 }

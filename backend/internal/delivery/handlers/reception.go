@@ -19,6 +19,7 @@ type ReceptionUseCase interface {
 	CreateReception(ctx context.Context, receptionForm forms.ReceptionForm) (models.Reception, error)
 	AddProduct(ctx context.Context, productForm forms.ProductForm) (models.Product, error)
 	RemoveProduct(ctx context.Context, pvzId uuid.UUID) error
+	CloseReception(ctx context.Context, pvzId uuid.UUID) (models.Reception, error)
 }
 
 type ReceptionHandler struct {
@@ -109,4 +110,28 @@ func (rc *ReceptionHandler) RemoveProduct(w http.ResponseWriter, r *http.Request
 
 func (rc *ReceptionHandler) CloseReception(w http.ResponseWriter, r *http.Request) {
 	logger.Info(r.Context(), "Got close reception request")
+
+	vars := mux.Vars(r)
+	pvzID := vars["pvzId"]
+	if pvzID == "" {
+		logger.Error(r.Context(), "Error path params: missing pvzId")
+		utils.WriteJsonError(w, "Error path params: missing pvzId", http.StatusBadRequest)
+		return
+	}
+
+	pvzId, err := uuid.Parse(pvzID)
+	if err != nil {
+		logger.Error(r.Context(), "invalid pvzId")
+		utils.WriteJsonError(w, "invalid pvzId", http.StatusBadRequest)
+		return
+	}
+
+	reception, err := rc.receptionUseCase.CloseReception(r.Context(), pvzId)
+	if err != nil {
+		utils.WriteJsonError(w, "There are no active receptions or non-existing pvzId", http.StatusBadRequest)
+		return
+	}
+
+	utils.WriteJson(w, forms.ToReceptionFormOut(reception), http.StatusOK)
+
 }
