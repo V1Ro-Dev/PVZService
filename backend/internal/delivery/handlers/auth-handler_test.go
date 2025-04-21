@@ -306,7 +306,6 @@ func TestLogin(t *testing.T) {
 				return
 			}
 
-			// остальная логика, если JSON валидный
 			if tt.loginErr == nil {
 				mockUC.EXPECT().LogInUser(gomock.Any(), tt.input).Return(tt.role, nil)
 			} else {

@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 
 	"pvz/internal/models"
@@ -42,6 +44,24 @@ func TestCreateUser(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 			},
 			expectedErr: false,
+		},
+		{
+			name: "error on sql execution",
+			setupMock: func() {
+				mock.ExpectExec(regexp.QuoteMeta(`insert into "user" (id, email, password, salt, role) values ($1, $2, $3, $4, $5)`)).
+					WithArgs(user.Id, user.Email, user.Password, user.Salt, user.Role).
+					WillReturnError(fmt.Errorf("SQL error"))
+			},
+			expectedErr: true,
+		},
+		{
+			name: "error on duplicate email",
+			setupMock: func() {
+				mock.ExpectExec(regexp.QuoteMeta(`insert into "user" (id, email, password, salt, role) values ($1, $2, $3, $4, $5)`)).
+					WithArgs(user.Id, user.Email, user.Password, user.Salt, user.Role).
+					WillReturnError(&pgconn.PgError{Code: "23505"})
+			},
+			expectedErr: true,
 		},
 	}
 

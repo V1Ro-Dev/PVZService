@@ -37,6 +37,8 @@ func Run(cfg *config.Config) error {
 	newReceptionHandler := handlers.NewReceptionHandler(newReceptionService)
 
 	defer newUserRepo.Close()
+	defer newPvzRepo.Close()
+	defer newReceptionRepo.Close()
 
 	r := mux.NewRouter()
 

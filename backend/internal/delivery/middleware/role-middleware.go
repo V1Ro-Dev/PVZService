@@ -25,6 +25,7 @@ func RoleMiddleware(allowedTypes ...models.Role) mux.MiddlewareFunc {
 
 			if tokenParts[0] != "Bearer" {
 				logger.Error(r.Context(), fmt.Sprintf("Invalid first param: %s", tokenParts[0]))
+				utils.WriteJsonError(w, "invalid scheme", http.StatusBadRequest)
 			}
 
 			role, err := utils.GetRole(tokenParts[1])
