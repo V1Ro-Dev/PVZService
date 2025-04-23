@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,10 +108,14 @@ func TestReceptionHandler_CreateReception(t *testing.T) {
 func TestReceptionHandler_AddProduct(t *testing.T) {
 	pvzId := uuid.New()
 	productId := uuid.New()
+	productType := "обувь"
 	receptionId := uuid.New()
+	now := time.Now().Truncate(time.Millisecond)
 
 	tests := []struct {
 		name        string
+		body        io.Reader
+		expectCall  bool
 		input       forms.ProductForm
 		mockReturn  models.Product
 		mockError   error
@@ -118,22 +124,33 @@ func TestReceptionHandler_AddProduct(t *testing.T) {
 	}{
 		{
 			name:        "ok",
-			input:       forms.ProductForm{PvzId: pvzId, Type: "обувь"},
-			mockReturn:  models.Product{Id: productId, ReceptionId: receptionId, ProductType: "обувь", DateTime: time.Now().Truncate(time.Millisecond)},
+			body:        toJSONBody(forms.ProductForm{PvzId: pvzId, Type: productType}),
+			expectCall:  true,
+			input:       forms.ProductForm{PvzId: pvzId, Type: productType},
+			mockReturn:  models.Product{Id: productId, ReceptionId: receptionId, ProductType: productType, DateTime: now},
 			mockError:   nil,
 			wantStatus:  http.StatusCreated,
-			wantBodyOut: forms.ProductFormOut{Id: productId, ReceptionId: receptionId, ProductType: "обувь", DateTime: time.Now().Truncate(time.Millisecond)},
+			wantBodyOut: forms.ProductFormOut{Id: productId, ReceptionId: receptionId, ProductType: productType, DateTime: now},
 		},
 		{
 			name:        "invalid json",
-			input:       forms.ProductForm{},
-			mockError:   nil,
+			body:        strings.NewReader("{invalid json"),
+			expectCall:  false,
+			wantStatus:  http.StatusBadRequest,
+			wantBodyOut: forms.ProductFormOut{},
+		},
+		{
+			name:        "invalid product type",
+			body:        toJSONBody(forms.ProductForm{PvzId: pvzId, Type: "рандомный тип"}),
+			expectCall:  false,
 			wantStatus:  http.StatusBadRequest,
 			wantBodyOut: forms.ProductFormOut{},
 		},
 		{
 			name:        "usecase error",
-			input:       forms.ProductForm{PvzId: uuid.New(), Type: "обувь"},
+			body:        toJSONBody(forms.ProductForm{PvzId: pvzId, Type: productType}),
+			expectCall:  true,
+			input:       forms.ProductForm{PvzId: pvzId, Type: productType},
 			mockReturn:  models.Product{},
 			mockError:   errors.New("some error"),
 			wantStatus:  http.StatusBadRequest,
@@ -149,16 +166,14 @@ func TestReceptionHandler_AddProduct(t *testing.T) {
 			mockUseCase := mocks.NewMockReceptionUseCase(ctrl)
 			h := handlers.NewReceptionHandler(mockUseCase)
 
-			body, _ := json.Marshal(tt.input)
-
-			if tt.name != "invalid json" {
+			if tt.expectCall {
 				mockUseCase.EXPECT().
 					AddProduct(gomock.Any(), tt.input).
 					Return(tt.mockReturn, tt.mockError).
 					Times(1)
 			}
 
-			req := httptest.NewRequest(http.MethodPost, "/products", bytes.NewReader(body))
+			req := httptest.NewRequest(http.MethodPost, "/products", tt.body)
 			rec := httptest.NewRecorder()
 
 			h.AddProduct(rec, req)
@@ -168,31 +183,59 @@ func TestReceptionHandler_AddProduct(t *testing.T) {
 
 			require.Equal(t, tt.wantStatus, res.StatusCode)
 
-			var out forms.ProductFormOut
-			err := json.NewDecoder(res.Body).Decode(&out)
-			require.NoError(t, err)
-			require.Equal(t, tt.wantBodyOut, out)
+			if res.StatusCode == http.StatusCreated {
+				var out forms.ProductFormOut
+				err := json.NewDecoder(res.Body).Decode(&out)
+				require.NoError(t, err)
+				require.Equal(t, tt.wantBodyOut, out)
+			}
 		})
 	}
+}
+
+func toJSONBody(v any) io.Reader {
+	b, _ := json.Marshal(v)
+	return bytes.NewReader(b)
 }
 
 func TestReceptionHandler_RemoveProduct(t *testing.T) {
 	tests := []struct {
 		name       string
-		pvzID      uuid.UUID
+		url        string
+		setVars    map[string]string
+		mockExpect bool
+		mockPvzID  uuid.UUID
 		mockError  error
 		wantStatus int
 	}{
 		{
 			name:       "ok",
-			pvzID:      uuid.New(),
+			url:        "/pvz/ok-id/delete_last_product",
+			setVars:    map[string]string{"pvzId": uuid.New().String()},
+			mockExpect: true,
 			mockError:  nil,
 			wantStatus: http.StatusOK,
 		},
 		{
 			name:       "usecase error",
-			pvzID:      uuid.New(),
+			url:        "/pvz/error-id/delete_last_product",
+			setVars:    map[string]string{"pvzId": uuid.New().String()},
+			mockExpect: true,
 			mockError:  errors.New("some error"),
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "missing pvzId",
+			url:        "/pvz//delete_last_product",
+			setVars:    map[string]string{}, // No pvzId
+			mockExpect: false,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid pvzId",
+			url:        "/pvz/invalid-uuid/delete_last_product",
+			setVars:    map[string]string{"pvzId": "invalid-uuid"},
+			mockExpect: false,
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -205,13 +248,19 @@ func TestReceptionHandler_RemoveProduct(t *testing.T) {
 			mockUseCase := mocks.NewMockReceptionUseCase(ctrl)
 			h := handlers.NewReceptionHandler(mockUseCase)
 
-			mockUseCase.EXPECT().
-				RemoveProduct(gomock.Any(), tt.pvzID).
-				Return(tt.mockError).
-				Times(1)
+			var expectedPvzID uuid.UUID
+			if tt.mockExpect {
+				var err error
+				expectedPvzID, err = uuid.Parse(tt.setVars["pvzId"])
+				require.NoError(t, err)
+				mockUseCase.EXPECT().
+					RemoveProduct(gomock.Any(), expectedPvzID).
+					Return(tt.mockError).
+					Times(1)
+			}
 
-			req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/pvz/%s/delete_last_product", tt.pvzID.String()), nil)
-			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzID.String()})
+			req := httptest.NewRequest(http.MethodDelete, tt.url, nil)
+			req = mux.SetURLVars(req, tt.setVars)
 			rec := httptest.NewRecorder()
 
 			h.RemoveProduct(rec, req)
@@ -227,9 +276,12 @@ func TestReceptionHandler_RemoveProduct(t *testing.T) {
 func TestReceptionHandler_CloseReception(t *testing.T) {
 	receptionId := uuid.New()
 	pvzId := uuid.New()
+
 	tests := []struct {
 		name        string
-		pvzID       uuid.UUID
+		url         string
+		setVars     map[string]string
+		mockExpect  bool
 		mockReturn  models.Reception
 		mockError   error
 		wantStatus  int
@@ -237,7 +289,9 @@ func TestReceptionHandler_CloseReception(t *testing.T) {
 	}{
 		{
 			name:        "ok",
-			pvzID:       pvzId,
+			url:         fmt.Sprintf("/pvz/%s/close_last_reception", pvzId.String()),
+			setVars:     map[string]string{"pvzId": pvzId.String()},
+			mockExpect:  true,
 			mockReturn:  models.Reception{Id: receptionId, PvzId: pvzId, Status: models.InProgress},
 			mockError:   nil,
 			wantStatus:  http.StatusOK,
@@ -245,9 +299,27 @@ func TestReceptionHandler_CloseReception(t *testing.T) {
 		},
 		{
 			name:        "usecase error",
-			pvzID:       pvzId,
+			url:         fmt.Sprintf("/pvz/%s/close_last_reception", pvzId.String()),
+			setVars:     map[string]string{"pvzId": pvzId.String()},
+			mockExpect:  true,
 			mockReturn:  models.Reception{},
 			mockError:   errors.New("some error"),
+			wantStatus:  http.StatusBadRequest,
+			wantBodyOut: forms.ReceptionFormOut{},
+		},
+		{
+			name:        "missing pvzId",
+			url:         "/pvz//close_last_reception",
+			setVars:     map[string]string{}, // no pvzId
+			mockExpect:  false,
+			wantStatus:  http.StatusBadRequest,
+			wantBodyOut: forms.ReceptionFormOut{},
+		},
+		{
+			name:        "invalid pvzId",
+			url:         "/pvz/invalid-uuid/close_last_reception",
+			setVars:     map[string]string{"pvzId": "invalid-uuid"},
+			mockExpect:  false,
 			wantStatus:  http.StatusBadRequest,
 			wantBodyOut: forms.ReceptionFormOut{},
 		},
@@ -261,13 +333,17 @@ func TestReceptionHandler_CloseReception(t *testing.T) {
 			mockUseCase := mocks.NewMockReceptionUseCase(ctrl)
 			h := handlers.NewReceptionHandler(mockUseCase)
 
-			mockUseCase.EXPECT().
-				CloseReception(gomock.Any(), tt.pvzID).
-				Return(tt.mockReturn, tt.mockError).
-				Times(1)
+			if tt.mockExpect {
+				parsedPvzID, err := uuid.Parse(tt.setVars["pvzId"])
+				require.NoError(t, err)
+				mockUseCase.EXPECT().
+					CloseReception(gomock.Any(), parsedPvzID).
+					Return(tt.mockReturn, tt.mockError).
+					Times(1)
+			}
 
-			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/pvz/%s/close_last_reception", tt.pvzID.String()), nil)
-			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzID.String()})
+			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
+			req = mux.SetURLVars(req, tt.setVars)
 			rec := httptest.NewRecorder()
 
 			h.CloseReception(rec, req)
@@ -277,10 +353,12 @@ func TestReceptionHandler_CloseReception(t *testing.T) {
 
 			require.Equal(t, tt.wantStatus, res.StatusCode)
 
-			var out forms.ReceptionFormOut
-			err := json.NewDecoder(res.Body).Decode(&out)
-			require.NoError(t, err)
-			require.Equal(t, tt.wantBodyOut, out)
+			if res.StatusCode == http.StatusOK {
+				var out forms.ReceptionFormOut
+				err := json.NewDecoder(res.Body).Decode(&out)
+				require.NoError(t, err)
+				require.Equal(t, tt.wantBodyOut, out)
+			}
 		})
 	}
 }

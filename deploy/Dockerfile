@@ -10,9 +10,7 @@ COPY deploy/config /pvz_app/deploy/config
 
 WORKDIR /pvz_app/backend
 
-# ✅ Кросс-компиляция под Linux/amd64
 RUN go build -o main main.go
-RUN chmod +x main
 
 FROM debian:bookworm-slim
 

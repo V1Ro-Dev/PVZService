@@ -73,11 +73,10 @@ func Run(cfg *config.Config) error {
 	}
 
 	logger.Info(ctx, fmt.Sprintf("starting server at %s", cfg.Addr))
-	err := server.ListenAndServe()
-	if err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		logger.Error(ctx, fmt.Sprintf("failed to start server: %v", err))
 		return err
 	}
-
+	
 	return nil
 }

@@ -69,7 +69,7 @@ func TestDummyLogin(t *testing.T) {
 			input:        forms.DummyLoginForm{Role: string(models.Client)},
 			mockErr:      errors.New("fail"),
 			expectStatus: http.StatusBadRequest,
-			expectBody:   `{"message":"failed to gen token"}`,
+			expectBody:   `{"message":"failed to gen.bat token"}`,
 		},
 		{
 			name:         "invalid JSON",
@@ -281,9 +281,9 @@ func TestLogin(t *testing.T) {
 				Password: "pass",
 			},
 			role:         string(models.Client),
-			tokenErr:     errors.New("token gen fail"),
+			tokenErr:     errors.New("token gen.bat fail"),
 			expectStatus: http.StatusUnauthorized,
-			expectBody:   `{"message":"failed to gen token"}`,
+			expectBody:   `{"message":"failed to gen.bat token"}`,
 		},
 		{
 			name:         "failed to parse json",

@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"pvz/internal/models"
 	"pvz/internal/repository"
@@ -63,6 +65,21 @@ func TestCreateReception(t *testing.T) {
 			},
 			expectedErr:  true,
 			expectedText: "unable to create reception",
+		},
+		{
+			name: "pg error",
+			setupMock: func() {
+				pgErr := &pgconn.PgError{
+					Message: "violates foreign key constraint",
+					Detail:  "Key (pvz_id)=(...) is not present in table pvz.",
+					Where:   "SQL insert",
+				}
+				mock.ExpectExec("insert into reception").
+					WithArgs(reception.Id, reception.DateTime, reception.PvzId, reception.Status).
+					WillReturnError(pgErr)
+			},
+			expectedErr:  true,
+			expectedText: "SQL Error: violates foreign key constraint",
 		},
 	}
 
@@ -189,6 +206,19 @@ func TestAddProduct(t *testing.T) {
 			},
 			expectedErr: true,
 		},
+		{
+			name: "pg error",
+			setupMock: func() {
+				mock.ExpectExec("insert into product").
+					WithArgs(product.Id, product.DateTime, product.ProductType, product.ReceptionId).
+					WillReturnError(&pgconn.PgError{
+						Message: "some weird SQL Error",
+						Detail:  "Super Mega Detailed error",
+						Where:   "In closing reception",
+					})
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -301,6 +331,19 @@ func TestCloseReception(t *testing.T) {
 				mock.ExpectExec("update reception set status").
 					WithArgs(reception.Id, models.Closed).
 					WillReturnError(errors.New("db error"))
+			},
+			expectedErr: true,
+		},
+		{
+			name: "pg error",
+			setupMock: func() {
+				mock.ExpectExec("update reception set status").
+					WithArgs(reception.Id, models.Closed).
+					WillReturnError(&pgconn.PgError{
+						Message: "some weird SQL Error",
+						Detail:  "Super Mega Detailed error",
+						Where:   "In closing reception",
+					})
 			},
 			expectedErr: true,
 		},

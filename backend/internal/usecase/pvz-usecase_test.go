@@ -159,3 +159,55 @@ func TestPvzService_GetPvzInfo(t *testing.T) {
 		})
 	}
 }
+
+func TestPvzService_GetPvzList(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := mocks.NewMockPvzRepository(ctrl)
+	service := usecase.NewPvzService(mockRepo)
+
+	pvzIdFirst := uuid.New()
+	pvzIdSecond := uuid.New()
+
+	tests := []struct {
+		name    string
+		mock    func()
+		want    []models.Pvz
+		wantErr bool
+	}{
+		{
+			name: "success",
+			mock: func() {
+				mockRepo.EXPECT().GetPvzList(gomock.Any()).Return([]models.Pvz{
+					{Id: pvzIdFirst, City: "Москва"},
+					{Id: pvzIdSecond, City: "Казань"},
+				}, nil)
+			},
+			want: []models.Pvz{
+				{Id: pvzIdFirst, City: "Москва"},
+				{Id: pvzIdSecond, City: "Казань"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "repository error",
+			mock: func() {
+				mockRepo.EXPECT().GetPvzList(gomock.Any()).Return(nil, errors.New("db error"))
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tt.mock()
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := service.GetPvzList(context.Background())
+			assert.Equal(t, tt.wantErr, err != nil)
+			if !tt.wantErr {
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}

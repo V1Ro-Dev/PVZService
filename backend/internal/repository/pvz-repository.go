@@ -52,6 +52,11 @@ const (
 		left join product pr on pr.reception_id = r.id
 		order by p.pvz_id
 	`
+
+	GetPvzListQuery = `
+		select id, registration_date, city
+		from pvz
+	`
 )
 
 type PostgresPvzRepository struct {
@@ -168,4 +173,41 @@ func (p *PostgresPvzRepository) GetPvzInfo(ctx context.Context, form forms.GetPv
 
 	logger.Info(ctx, "Successfully get pvz info")
 	return result, nil
+}
+
+func (p *PostgresPvzRepository) GetPvzList(ctx context.Context) ([]models.Pvz, error) {
+	logger.Info(ctx, "Trying to get pvz list")
+
+	rows, err := p.Db.QueryContext(ctx, GetPvzListQuery)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			newErr := fmt.Errorf("SQL Error: %s, Detail: %s, Where: %s", pgErr.Message, pgErr.Detail, pgErr.Where)
+			logger.Error(ctx, newErr.Error())
+			return nil, newErr
+		}
+		logger.Error(ctx, fmt.Sprintf("Error getting pvz info: %s", err.Error()))
+		return nil, fmt.Errorf("unable to get pvz info: %v", err)
+	}
+	defer rows.Close()
+
+	var pvzList []models.Pvz
+	for rows.Next() {
+		var pvz models.Pvz
+
+		err = rows.Scan(&pvz.Id,
+			&pvz.RegistrationDate,
+			&pvz.City,
+		)
+
+		if err != nil {
+			logger.Error(ctx, fmt.Sprintf("Scanning error: %s", err.Error()))
+			return nil, err
+		}
+
+		pvzList = append(pvzList, pvz)
+	}
+
+	logger.Info(ctx, "Successfully get pvz list")
+	return pvzList, nil
 }

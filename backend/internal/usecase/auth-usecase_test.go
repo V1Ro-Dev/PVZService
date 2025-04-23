@@ -208,7 +208,7 @@ func TestAuthService_DummyLogin(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "valid token gen",
+			name:    "valid token gen.bat",
 			role:    "employee",
 			wantErr: false,
 		},

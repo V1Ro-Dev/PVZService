@@ -49,7 +49,7 @@ func (a *AuthHandler) DummyLogin(w http.ResponseWriter, r *http.Request) {
 
 	token, err := a.authUseCase.DummyLogin(r.Context(), dummyLoginForm.Role)
 	if err != nil {
-		utils.WriteJsonError(w, "failed to gen token", http.StatusBadRequest)
+		utils.WriteJsonError(w, "failed to gen.bat token", http.StatusBadRequest)
 		return
 	}
 
@@ -115,7 +115,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := a.authUseCase.DummyLogin(r.Context(), role)
 	if err != nil {
-		utils.WriteJsonError(w, "failed to gen token", http.StatusUnauthorized)
+		utils.WriteJsonError(w, "failed to gen.bat token", http.StatusUnauthorized)
 		return
 	}
 

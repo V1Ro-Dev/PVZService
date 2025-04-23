@@ -30,7 +30,7 @@ func NewAuthService(userRepo UserRepository) *AuthService {
 }
 
 func (a *AuthService) DummyLogin(ctx context.Context, role string) (string, error) {
-	logger.Info(ctx, "Trying to gen token")
+	logger.Info(ctx, "Trying to gen.bat token")
 
 	token, err := utils.GenerateToken(role)
 	if err != nil {

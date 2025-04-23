@@ -30,3 +30,7 @@ func (p *FakePvzRepository) CreatePvz(ctx context.Context, pvzData models.Pvz) e
 func (p *FakePvzRepository) GetPvzInfo(ctx context.Context, form forms.GetPvzInfoForm) ([]models.PvzInfo, error) {
 	return []models.PvzInfo{}, nil
 }
+
+func (p *FakePvzRepository) GetPvzList(ctx context.Context) ([]models.Pvz, error) {
+	return []models.Pvz{}, nil
+}
