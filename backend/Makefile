@@ -5,7 +5,7 @@ DELIEVERY_PATH=internal/delivery
 USECASE_PATH=internal/usecase
 REPOSITORY_PATH=internal/repository
 
-coverage.out:
+coverage:
 	go test $(GO_FILES) -coverprofile=coverage.out
 
 .PHONY: summarize-coverage
