@@ -33,7 +33,7 @@ docker-compose up --build -d [если нужен новый билд]
 cd ./backend
 make summarize-coverage
 или
-go te
+go test ./...
 ```
 
 Запуск интеграционного теста
@@ -41,12 +41,12 @@ go te
 make integration
 или
 cd /integration-tests
-go test ./...
+go test basic-flow_test.go
 ```
 
 Генерация структур и методов из файла pvz.proto
 ```sh
-make gen.bat-proto
+make gen-proto
 или
 cd /internal/grpc/pvz
 protoc --go_out=. --go-grpc_out=. --go-grpc_opt=paths=source_relative --go_opt=paths=source_relative *.proto
